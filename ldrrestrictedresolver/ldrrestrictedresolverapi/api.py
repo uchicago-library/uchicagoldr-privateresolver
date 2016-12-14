@@ -129,72 +129,6 @@ class GetAPremisItem(Resource):
         except Exception as e:
             return jsonify(_EXCEPTION_HANDLER.handle(e).dictify())
 
-class GetTechMetadataList(Resource):
-    """
-    fill_in_please
-    """
-    def get(self, arkid, premisid):
-        """
-        Get the whole record
-        """
-        from flask import current_app
-        data = get_content_half_of_object(arkid, premisid,
-                                          current_app.config["LONGTERMSTORAGE_PATH"])
-        try:
-            if data:
-                content_directory = dirname(data[0])
-                content_directory_contents = listdir(content_directory)
-                metadata_in_directory = [x for x in content_directory_contents if "premis" not in  x and "content.file" not in x and "0=" not in x]
-                output = {}
-                for i in range(len(metadata_in_directory)):
-                    output[str(i)] = {"label": metadata_in_directory[i].split('.')[0], "loc": join("/", arkid, premisid, "techmds/", str(i))}
-                resp = APIResponse("success", data={"technicalmetadata_list": output})
-                return jsonify(resp.dictify())
-            else:
-                return abort(404, message="{} could not be found.".format(join(arkid, premisid)))
-        except Exception as e:
-            return jsonify(_EXCEPTION_HANDLER.handle(e).dictify())
-
-class GetASpecificTechnicalMetadata(Resource):
-    def get(self, arkid, premisid, numbered_request):
-        """
-        Get the whole record
-        """
-        from flask import current_app
-        try:
-            just_one_side_of_thing = get_content_half_of_object(arkid, premisid,
-                                                                current_app.config["LONGTERMSTORAGE_PATH"])
-            if just_one_side_of_thing:
-                content_directory = dirname(just_one_side_of_thing[0])
-                content_directory_contents = listdir(content_directory)
-                metadata_in_directory = [x for x in content_directory_contents if "premis" not in  x and "content.file" not in x and "0=" not in x]
-                output = {}
-                for i in range(len(metadata_in_directory)):
-                    output[str(i)] = {"label": metadata_in_directory[i].split('.')[0], "loc": join("/", arkid, premisid, "techmds/", str(i))}
-                matched_mdata = output.get(str(numbered_request))
-                if matched_mdata:
-                    mdata_file_basename = [x for x in content_directory_contents if matched_mdata.get("label") in x][0]
-                    mdata_filepath = join(content_directory, mdata_file_basename)
-                    if 'xml' in mdata_file_basename:
-                        mimetype = 'application/xml'
-                        resp = send_file(mdata_filepath,
-                                         as_attachment=True,
-                                         attachment_filename=premisid+".xml",
-                                         mimetype=mimetype)
-                    else:
-                        mimetype = 'plain/text'
-                        resp = send_file(mdata_filepath,
-                                         as_attachment=True,
-                                         attachment_filename=premisid+".txt",
-                                         mimetype=mimetype)
-                    return resp
-                else:
-                    resp = APIResponse("fail", errors=["{}/{} was not found".format(join(arkid, premisid), numbered_request)])
-            else:
-                return abort(404, message="{} could not be found.".format(join(arkid, premisid)))
-        except Exception as e:
-            return jsonify(_EXCEPTION_HANDLER.handle(e).dictify())
-
 class GetPresformsList(Resource):
     """
     fill_in_please
@@ -321,8 +255,6 @@ class ConvenienceToGetLastPresformOrContent(Resource):
 # file retrieval endpoints
 API.add_resource(GetAContentItem, "/<string:arkid>/<string:premisid>/content")
 API.add_resource(GetAPremisItem, "/<string:arkid>/<string:premisid>/premis")
-API.add_resource(GetTechMetadataList, "/<string:arkid>/<string:premisid>/techmds")
-API.add_resource(GetASpecificTechnicalMetadata, "/<string:arkid>/<string:premisid>/techmds/<int:numbered_request>")
 API.add_resource(GetPresformsList, "/<string:arkid>/<string:premisid>/presforms")
 API.add_resource(GetASpecificPresform, "/<string:arkid>/<string:premisid>/presforms/<int:numbered_request>")
 API.add_resource(ConvenienceToGetLastPresformOrContent, "/<string:arkid>/<string:premisid>/presform")
