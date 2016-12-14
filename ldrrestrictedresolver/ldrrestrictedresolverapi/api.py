@@ -7,7 +7,7 @@ from os.path import join, exists
 from werkzeug.utils import secure_filename
 from re import compile as regex_compile
 from xml.etree import ElementTree as ET
-from sys import stderr
+import re
 
 from pypairtree.utils import identifier_to_path
 from ldrpremisbuilding.utils import *
@@ -25,9 +25,17 @@ BP = Blueprint("ldrprocessorserverapi", __name__)
 API = Api(BP)
 
 def make_download_event(path_to_record, event_category, event_date, event_status, user, objid):
-    event_message = "{} downlooaded the content".format(user)
-    new_download_event = build_a_premis_event(event_category, event_date, event_status, event_message, user, objid)
+    if re.compile("^a|e|i|o|u.*").match(event_category):
+        event_message = "there was an {} of this content".format(event_category)
+    else:
+        event_message = "there was a {} of this content".format(event_category)
+    new_download_event = build_a_premis_event(event_category, event_date, event_status, event_message, user, objid, agent_type="person")
     was_it_written = add_event_to_premis_record(path_to_record, new_download_event)
+    print(new_download_event)
+    new_download_event = build_a_premis_event(event_category, event_date, event_status, event_message, user, objid, agent_type="person")
+    was_it_written = add_event_to_premis_record(path_to_record, new_download_event)
+    print(new_download_event)
+    print(was_it_written)
     return was_it_written
 
 def get_data_half_of_object(arkid, premisid, lp_path):
@@ -78,16 +86,12 @@ class GetAContentItem(Resource):
         """
         from flask import current_app
         try:
-            user = request.headers.get("uid") if request.headers.get("uid") else "anonymous"
-            event_category = "anonymous download" if user == "anonymous" else "restricted download"
+            user = "authorized" if "private" in request.environ.get("REQUEST_URI") else "anonymous"
+            event_category = "anonymous download" if user == "anonymous" else "authorized download"
             data = get_object_halves(arkid, premisid, current_app.config["LONGTERMSTORAGE_PATH"], current_app.config["LIVEPREMIS_PATH"])
             if not data:
                 return abort(404, message="{} cannot be found".format(join(arkid, premisid)))
             else:
-                new_download_event = build_a_premis_event(event_category,
-                                                          datetime.now().isoformat(),
-                                                          "SUCCESS", "{} downloaded this content".format(user),
-                                                          user, data[1].objid)
                 attach_filename, mimetype = get_an_attachment_filename(data[1])
                 record_path = join(current_app.config["LIVEPREMIS_PATH"],
                                    str(identifier_to_path(arkid)), "arf", "pairtree_root",
@@ -99,6 +103,7 @@ class GetAContentItem(Resource):
                                  as_attachment=True,
                                  attachment_filename=attach_filename,
                                  mimetype=mimetype)
+                return resp
         except Exception as e:
             return jsonify(_EXCEPTION_HANDLER.handle(e).dictify())
 
@@ -222,8 +227,8 @@ class GetASpecificPresform(Resource):
         """
         from flask import current_app
         try:
-            user = request.headers.get("uid") if request.headers.get("uid") else "anonymous"
-            event_category = "anononymous download" if user == "anonymous" else "restricted download"
+            user = "authorized" if "private" in request.environ.get("REQUEST_URI") else "anonymous"
+            event_category = "anonymous download" if user == "anonymous" else "authorized download"
             data = get_object_halves(arkid, premisid, current_app.config["LIVEPREMIS_PATH"])
             related_objects = data[1].related_objects
             output = {}
