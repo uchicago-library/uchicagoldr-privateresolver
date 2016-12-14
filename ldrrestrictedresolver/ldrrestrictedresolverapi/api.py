@@ -122,7 +122,7 @@ class GetAPremisItem(Resource):
                 return abort(404, message="{} premis record cannot be found.".format(join(arkid, premisid)))
             else:
                 resp = send_file(data[0],
-                                 as_attachment=True,
+                                 as_attachment=False,
                                  attachment_filename=premisid + ".xml",
                                  mimetype="application/xml")
                 return resp
